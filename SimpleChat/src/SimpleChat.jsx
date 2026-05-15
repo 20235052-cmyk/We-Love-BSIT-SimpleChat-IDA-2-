@@ -1,293 +1,328 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import './App.css';
-function SimpleChat() {
-  const [currentView, setCurrentView] = useState('home');
-  const [currentRoom, setCurrentRoom] = useState(null);
-  const [user, setUser] = useState(null);
+import React, { useState, useEffect, useRef } from 'react';
+
+// --- STYLES ---
+const GlobalStyles = () => (
+  <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+
+    :root {
+      --primary: #6366f1;
+      --bg: #050508;
+      --card: #0a0a0f;
+      --border: rgba(255, 255, 255, 0.08);
+      --text-dim: #94a3b8;
+    }
+
+    body { 
+      margin: 0; 
+      background: var(--bg); 
+      color: #fff;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    .glass-ui {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .terminal-font {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-online {
+      width: 8px;
+      height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
+    }
+
+    .sidebar-btn {
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      width: 100%;
+      border-radius: 8px;
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .sidebar-btn:hover {
+      background: rgba(255, 255, 255, 0.03);
+      color: #fff;
+    }
+
+    .sidebar-btn.active {
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      padding: 10px 20px;
+      border-radius: 8px;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+  `}</style>
+);
+
+export default function App() {
+  const [view, setView] = useState('auth'); 
+  const [activeTab, setActiveTab] = useState('terminal'); 
+  const [user, setUser] = useState({ name: '', section: '' });
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [usersOnline, setUsersOnline] = useState([]);
-  const messagesEndRef = useRef(null);
-  const messageInputRef = useRef(null);
-  const HomePage = () => {
-    const [username, setUsername] = useState('');
-    const [room, setRoom] = useState('');
-    const usernameRef = useRef(null);
-    const roomRef = useRef(null);
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (username && room) {
-        setUser({ name: username, id: Date.now() });
-        setCurrentRoom(room);
-        setCurrentView('chat');
-        setUsersOnline([username]);
-        setMessages([{ id: 1, user: 'SYSTEM', message: `🔥 WELCOME TO ${room.toUpperCase()} 🔥`, timestamp: new Date(), type: 'system' }]);
-      }
-    };
+  const [input, setInput] = useState('');
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (user.name && user.section) {
+      setMessages([{
+        id: 'init',
+        sender: 'SYS',
+        text: `Terminal Initialized. Welcome Operative ${user.name}. Connection stable in ${user.section}.`,
+        isSys: true
+      }]);
+      setView('main');
+    }
+  };
+
+  const handleSend = (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    const newMsg = { id: Date.now(), sender: user.name, text: input, isSys: false };
+    setMessages(prev => [...prev, newMsg]);
+
+    // Command Simulation
+    if (input.startsWith('/')) {
+      const cmd = input.toLowerCase();
+      let response = '';
+      if (cmd === '/help') response = "Available: /status, /clear, /time, /about";
+      else if (cmd === '/time') response = `Current Timestamp: ${new Date().toLocaleTimeString()}`;
+      else if (cmd === '/about') response = "BSIT Student Terminal v4.0 - Developed by Group 7 Capstone Team.";
+      else if (cmd === '/status') response = `User: ${user.name} | Section: ${user.section} | Role: Student Operative`;
+      else if (cmd === '/clear') { setMessages([]); setInput(''); return; }
+      else response = "Unknown command. Type /help.";
+
+      setTimeout(() => {
+        setMessages(prev => [...prev, { id: Date.now()+1, sender: 'SYS', text: response, isSys: true }]);
+      }, 500);
+    }
+    setInput('');
+  };
+
+  if (view === 'auth') {
     return (
-      <div className="container cyber-glow-red pulse-red" style={{ maxWidth: '700px', margin: '0 auto' }}>
-        <div className="text-center mb-12">
-          <h1 className="text-7xl font-black" style={{ 
-            color: '#ff0080', 
-            textShadow: '0 0 20px #ff0080, 0 0 40px #ff0080, 0 1px 0 #000',
-            fontWeight: '900'
-          }}>
-            SIMPLECHAT+
-          </h1>
-          <p className="text-2xl" style={{ color: '#ffffff', textShadow: '0 1px 3px #000' }}>
-            CYBERPUNK COLLAB FOR BSIT WARRIORS
-          </p>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#030305]">
+        <GlobalStyles />
+        <div className="w-full max-w-sm glass-ui p-10 text-center">
+          <div className="mb-10">
+            <h1 className="text-3xl font-extrabold tracking-tighter text-white">BSIT<span className="text-indigo-500">.</span>CORE</h1>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">Student Terminal Interface</p>
+          </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input 
+              className="w-full bg-white/[0.03] border border-white/10 p-4 rounded-xl text-white text-sm focus:border-indigo-500 outline-none transition-all"
+              placeholder="Student Name"
+              onChange={e => setUser({...user, name: e.target.value})}
+              required
+            />
+            <input 
+              className="w-full bg-white/[0.03] border border-white/10 p-4 rounded-xl text-white text-sm focus:border-indigo-500 outline-none transition-all"
+              placeholder="Section (e.g. IT3A)"
+              onChange={e => setUser({...user, section: e.target.value})}
+              required
+            />
+            <button className="w-full btn-primary text-xs uppercase tracking-widest mt-4">Establish Uplink</button>
+          </form>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div>
-            <label className="block text-xl font-bold" style={{ color: '#00ffff', textShadow: '0 0 15px #00ffff' }}>
-              ⚡ CYBER ID
-            </label>
-            <input
-              ref={usernameRef}
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full cyber-glow-red"
-              style={{ 
-                color: '#ffffff', 
-                background: 'rgba(20,0,40,0.9)',
-                border: '2px solid rgba(255,0,100,0.8)',
-                fontSize: '18px'
-              }}
-              placeholder="Enter your cyber handle..."
-              required
-              autoComplete="off"
-            />
-          </div>          
-          <div>
-            <label className="block text-xl font-bold" style={{ color: '#00ffff', textShadow: '0 0 15px #00ffff' }}>
-              🔴 CHATROOM
-            </label>
-            <input
-              ref={roomRef}
-              type="text"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
-              className="w-full cyber-glow-red"
-              style={{ 
-                color: '#ffffff', 
-                background: 'rgba(20,0,40,0.9)',
-                border: '2px solid rgba(255,0,100,0.8)',
-                fontSize: '18px'
-              }}
-              placeholder="BSIT-3A / GROUP-ALPHA / HACKER-ZONE"
-              required
-              autoComplete="off"
-            />
-          </div>         
-          <button
-            type="submit"
-            className="w-full btn-red cyber-glow-red text-xl font-black py-6 uppercase tracking-wider shadow-2xl"
-            style={{ color: '#ffffff' }}
-          >
-            🚀 ENTER CYBERSPACE
-          </button>
-        </form>
       </div>
     );
-  };
-  const ChatRoom = () => {
-    const sendMessage = (e) => {
-      e.preventDefault();
-      if (newMessage.trim()) {
-        const message = {
-          id: Date.now(),
-          user: user.name,
-          message: newMessage,
-          timestamp: new Date(),
-          type: 'user'
-        };
-        setMessages(prev => [...prev, message]);
-        setNewMessage('');
-      }
-    };
-    const handleMessageChange = useCallback((e) => {
-      setNewMessage(e.target.value);
-    }, []);
-    const leaveRoom = () => {
-      setCurrentRoom(null);
-      setUser(null);
-      setCurrentView('home');
-      setMessages([]);
-    };
-    const MessageBubble = ({ message }) => (
-      <div className={`flex ${message.type === 'system' ? 'justify-center' : message.user === user.name ? 'justify-end' : 'justify-start'} mb-6`}>
-        {message.type !== 'system' && message.user !== user.name && (
-          <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-pink-500 rounded-full flex items-center justify-center text-lg font-black shadow-2xl mr-4" 
-               style={{ 
-                 boxShadow: '0 0 20px rgba(255,0,100,0.8)',
-                 border: '2px solid rgba(255,0,100,0.5)'
-               }}>
-            <span style={{ color: '#00ffff', textShadow: '0 0 10px #00ffff' }}>{message.user.charAt(0)}</span>
+  }
+
+  return (
+    <div className="h-screen flex flex-col bg-[#030305]">
+      <GlobalStyles />
+      
+      {/* Header */}
+      <header className="h-14 border-b border-white/5 flex items-center justify-between px-6 bg-black/20">
+        <div className="flex items-center gap-4">
+          <span className="text-white font-extrabold tracking-tighter">BSIT_CORE</span>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="flex items-center gap-2">
+            <div className="status-online" />
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{user.section} // {user.name}</span>
           </div>
-        )}
-        <div className={`max-w-md p-6 rounded-3xl shadow-2xl ${message.user === user.name ? 'cyber-glow-red' : 'border-2 border-red-500/50 cyber-glow-red'}`} 
-             style={{ 
-               background: message.user === user.name ? 'linear-gradient(135deg, rgba(255,0,100,0.9), rgba(255,50,150,0.9))' : 'rgba(20,0,40,0.95)',
-               color: '#ffffff',
-               borderColor: 'rgba(255,0,100,0.6)'
-             }}>
-          {message.type !== 'system' && (
-            <div className="text-sm font-bold uppercase tracking-wider mb-3" style={{ color: '#00ffff' }}>
-              {message.user}
+        </div>
+        <button onClick={() => setView('auth')} className="text-[10px] text-gray-500 hover:text-white font-bold uppercase tracking-widest">Logout</button>
+      </header>
+
+      <div className="flex-1 flex overflow-hidden">
+        {/* Simplified Sidebar */}
+        <nav className="w-64 border-r border-white/5 p-4 flex flex-col gap-1">
+          {[
+            { id: 'terminal', label: 'Command Terminal', icon: '⚡' },
+            { id: 'lounge', label: 'Peer Lounge', icon: '👥' },
+            { id: 'vault', label: 'Resource Vault', icon: '📂' },
+            { id: 'matrix', label: 'Grade Matrix', icon: '📊' },
+          ].map(tab => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`sidebar-btn ${activeTab === tab.id ? 'active' : ''}`}
+            >
+              <span className="text-lg">{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+
+          <div className="mt-auto p-4 glass-ui bg-indigo-500/5">
+            <p className="text-[9px] font-black text-indigo-400 uppercase mb-2">Upcoming Deadline</p>
+            <p className="text-xs font-bold text-white mb-1">DBMS Project v1</p>
+            <p className="text-[10px] text-gray-500">Tomorrow @ 11:59PM</p>
+          </div>
+        </nav>
+
+        {/* Content Area */}
+        <main className="flex-1 flex flex-col bg-black/10">
+          {activeTab === 'terminal' && (
+            <>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4 terminal-font scrollbar-subtle">
+                {messages.map(m => (
+                  <div key={m.id} className={`${m.isSys ? 'text-indigo-400/80' : 'text-gray-300'}`}>
+                    <span className="font-bold opacity-50 mr-2">[{m.isSys ? 'SYSTEM' : m.sender}]</span>
+                    <span className="text-sm">{m.text}</span>
+                  </div>
+                ))}
+                <div ref={scrollRef} />
+              </div>
+              <form onSubmit={handleSend} className="p-6 bg-black/20">
+                <div className="glass-ui flex items-center px-4 overflow-hidden focus-within:border-indigo-500/50">
+                  <span className="text-indigo-500 font-bold mr-3">{'>'}</span>
+                  <input 
+                    className="flex-1 bg-transparent py-4 text-sm outline-none terminal-font text-white"
+                    placeholder="Type /help for commands..."
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+              </form>
+            </>
+          )}
+
+          {activeTab === 'lounge' && (
+            <div className="p-10 max-w-5xl mx-auto w-full">
+              <h2 className="text-2xl font-black text-white mb-8">Active Peers</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  { name: 'Aldrin', status: 'Working on Java', online: true },
+                  { name: 'Kyla', status: 'Studying Discrete Math', online: true },
+                  { name: 'Justin', status: 'Offline', online: false },
+                  { name: 'Sam', status: 'Coding CSS fixes', online: true },
+                ].map((p, i) => (
+                  <div key={i} className="glass-ui p-5 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-white">{p.name}</h4>
+                      <p className="text-[11px] text-gray-500">{p.status}</p>
+                    </div>
+                    {p.online && <div className="status-online" />}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-10 p-6 glass-ui bg-indigo-500/[0.02]">
+                <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-4">Node Broadcasts</h3>
+                <div className="space-y-4">
+                  <div className="text-[13px] text-gray-400"><span className="text-white font-bold">[10:00 AM]</span> Prof. Santos: The practical exam is moved to Friday.</div>
+                  <div className="text-[13px] text-gray-400"><span className="text-white font-bold">[08:30 AM]</span> System: Maintenance scheduled for Saturday.</div>
+                </div>
+              </div>
             </div>
           )}
-          <div className="text-lg leading-relaxed" style={{ color: '#ffffff' }}>{message.message}</div>
-          <div className="text-sm font-mono mt-4" style={{ color: '#cccccc' }}>
-            {message.timestamp.toLocaleTimeString()}
-          </div>
-        </div>
-      </div>
-    );
-    return (
-      <div className="h-screen flex flex-col">
-        {/* Header */}
-        <div className="bg-black/95 backdrop-blur-xl border-b-2 border-red-500/80 p-8 cyber-glow-red" style={{ boxShadow: '0 0 30px rgba(255,0,100,0.5)' }}>
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div>
-              <h1 className="text-5xl font-black" style={{ 
-                color: '#ff0080', 
-                textShadow: '0 0 25px #ff0080, 0 0 50px #ff0080'
-              }}>
-                # {currentRoom?.toUpperCase()}
-              </h1>
-              <div className="flex items-center gap-6 mt-2 text-xl" style={{ color: '#ffffff' }}>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-red-500 rounded-full cyber-glow-red" style={{ boxShadow: '0 0 15px #ff0080' }}></div>
-                  <span>{usersOnline.length} CYBERNAUTS ONLINE</span>
-                </div>
+
+          {activeTab === 'vault' && (
+            <div className="p-10 max-w-5xl mx-auto w-full">
+              <div className="flex justify-between items-end mb-8">
+                <h2 className="text-2xl font-black text-white">Repository</h2>
+                <span className="text-[10px] font-bold text-gray-500">6 Files Synchronized</span>
               </div>
-            </div>
-            <button
-              onClick={leaveRoom}
-              className="px-8 py-4 bg-black/80 border-2 border-red-500/80 hover:border-red-500 cyber-glow-red font-black uppercase tracking-wider hover:scale-110 transition-all duration-300 shadow-2xl"
-              style={{ color: '#ffffff' }}
-            >
-              EXIT MATRIX
-            </button>
-          </div>
-        </div>
-        <div className="flex-1 flex overflow-hidden">
-          {/* Messages */}
-          <div className="flex-1 flex flex-col p-8 overflow-hidden">
-            <div className="flex-1 overflow-y-auto space-y-6 pr-6 pb-24" style={{ scrollbarWidth: 'thin' }}>
-              {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            {/* FIXED Input */}
-           <form onSubmit={sendMessage} className="mt-8 pt-8 border-t-2 border-red-500/50">
-  <div className="flex gap-4 items-end">
-    <input
-      ref={messageInputRef}
-      type="text"
-      value={newMessage}
-      onChange={handleMessageChange}
-      placeholder="TRANSMIT MESSAGE... CTRL+ENTER"
-      className="flex-1 cyber-glow-red"
-      autoFocus // Ensures focus persists or regains on render
-      style={{ 
-        color: '#ffffff', // Removed !important; use CSS classes if you need override power
-        background: 'rgba(15,0,30,0.95)',
-        border: '2px solid rgba(255,0,100,0.9)',
-        fontSize: '18px',
-        padding: '20px 24px',
-        fontFamily: 'monospace'
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && e.ctrlKey) {
-          sendMessage(e);
-        }
-      }}
-      autoComplete="off"
-    />
-    <button
-      type="submit"
-      className="w-20 h-20 btn-red cyber-glow-red shadow-2xl hover:scale-125 font-black text-2xl flex items-center justify-center"
-      style={{ 
-        color: '#ffffff',
-        background: 'linear-gradient(45deg, #ff0080, #ff4060)'
-      }}
-    >
-      ➤
-    </button>
-  </div>
-</form>
-          </div>
-          {/* Sidebar */}
-          <div className="w-96 border-l-2 border-red-500/60 bg-black/90 backdrop-blur-xl p-8 cyber-glow-red overflow-y-auto">
-            <div className="space-y-8">
-              <div>
-                <h3 className="text-3xl font-black" style={{ color: '#00ffff', textShadow: '0 0 20px #00ffff' }}>
-                  👥 CYBERNAUTS
-                </h3>
-                <div className="space-y-4 mt-6">
-                  {usersOnline.map(u => (
-                    <div key={u} className="flex items-center gap-4 p-5 bg-black/70 border-2 border-red-500/50 hover:border-red-500 cyber-glow-red hover:scale-105 transition-all duration-300 rounded-2xl shadow-2xl">
-                      <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-2xl" 
-                           style={{ boxShadow: '0 0 25px rgba(255,0,100,0.8)' }}>
-                        <span style={{ color: '#00ffff', fontSize: '24px', fontWeight: 'bold' }}>{u.charAt(0)}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-black text-xl" style={{ color: '#ffffff' }}>{u}</div>
-                        <div className="text-lg" style={{ color: '#cccccc' }}>ONLINE</div>
-                      </div>
-                      <div className="w-4 h-4 bg-red-500 rounded-full cyber-glow-red" style={{ boxShadow: '0 0 15px #ff0080' }}></div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-3xl font-black" style={{ color: '#ff0080', textShadow: '0 0 20px #ff0080' }}>
-                  📊 MISSION STATUS
-                </h3>
-                <div className="space-y-4 mt-6">
-                  {[
-                    {name: 'FRONTEND MATRIX', perc: 85, color: 'linear-gradient(90deg, #ff0080, #ff4080)'},
-                    {name: 'BACKEND CORE', perc: 60, color: 'linear-gradient(90deg, #00ffff, #40c0ff)'},
-                    {name: 'DATABASE VAULT', perc: 35, color: 'linear-gradient(90deg, #8b00ff, #c040ff)'}
-                  ].map((task, i) => (
-                    <div key={i} className="p-6 bg-black/80 border-2 border-red-500/50 rounded-2xl cyber-glow-red hover:scale-105 transition-all">
-                      <div className="flex justify-between items-center mb-4">
-                        <span className="font-black text-xl" style={{ color: '#ffffff' }}>{task.name}</span>
-                        <span className="font-black text-2xl" style={{ color: '#ff0080' }}>{task.perc}%</span>
-                      </div>
-                      <div className="bg-black/60 rounded-full h-5 border border-red-500/50 overflow-hidden">
-                        <div 
-                          className="h-5 rounded-full cyber-glow-red transition-all duration-1000"
-                          style={{ 
-                            width: `${task.perc}%`,
-                            background: task.color,
-                            boxShadow: '0 0 15px currentColor'
-                          }}
-                        />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[
+                  { name: 'Lecture_Finals.pdf', size: '4.2 MB', category: 'Handout' },
+                  { name: 'Lab_Activity_4.java', size: '12 KB', category: 'Source' },
+                  { name: 'Project_Proposal.docx', size: '890 KB', category: 'Doc' },
+                  { name: 'Reviewer_DBMS.pdf', size: '1.5 MB', category: 'Notes' },
+                ].map((f, i) => (
+                  <div key={i} className="glass-ui p-6 flex items-center justify-between group hover:border-indigo-500/40 cursor-pointer transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded bg-white/5 flex items-center justify-center text-xl">📄</div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white group-hover:text-indigo-400">{f.name}</h4>
+                        <p className="text-[10px] text-gray-500 uppercase font-bold">{f.category} • {f.size}</p>
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <span className="text-xs opacity-0 group-hover:opacity-100 transition-all">Download</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-  return (
-    <div className="app">
-      <div className="app-content p-8">
-        {currentView === 'home' ? <HomePage /> : <ChatRoom />}
+          )}
+
+          {activeTab === 'matrix' && (
+            <div className="p-10 max-w-5xl mx-auto w-full">
+              <div className="flex justify-between items-center mb-10">
+                <h2 className="text-2xl font-black text-white">Performance Matrix</h2>
+                <div className="text-right">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase mb-1">Overall GWA</p>
+                  <p className="text-4xl font-black text-indigo-500">1.25</p>
+                </div>
+              </div>
+              <div className="space-y-6">
+                {[
+                  { sub: 'Advanced Database', grade: 94 },
+                  { sub: 'Human Computer Interaction', grade: 91 },
+                  { sub: 'Networking 2', grade: 89 },
+                  { sub: 'Integrative Programming', grade: 96 }
+                ].map((s, i) => (
+                  <div key={i} className="glass-ui p-6">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm font-bold text-white">{s.sub}</span>
+                      <span className="text-sm font-bold text-indigo-400">{s.grade}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-500" style={{ width: `${s.grade}%` }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </main>
       </div>
     </div>
   );
 }
-export default SimpleChat;
